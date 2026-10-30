@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FaceScope - Real-Time AI Face Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- MediaPipe Face Detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.25);
+    }
+    canvas {
+      border-radius: 0.75rem;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center">
+
+  <!-- Header -->
+  <header class="max-w-5xl w-full text-center mb-8">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 mb-3">
+      <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> Computer Vision & AI Application
+    </div>
+    <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+      FaceScope AI
+    </h1>
+    <p class="text-slate-400 text-sm md:text-base mt-2 max-w-xl mx-auto">
+      Real-time intelligent face detection powered by Deep Neural Networks & Computer Vision. Runs live via webcam or image upload.
+    </p>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Left / Center Viewport (2 Cols) -->
+    <div class="lg:col-span-2 flex flex-col gap-4">
+      
+      <!-- Video/Canvas Stage -->
+      <div class="glass-card glow-cyan rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden min-h-[380px]">
+        
+        <!-- Live Badge & Stats -->
+        <div class="absolute top-6 left-6 z-10 flex gap-2">
+          <div id="statusBadge" class="px-3 py-1 bg-slate-900/80 backdrop-blur rounded-full text-xs font-medium text-slate-300 border border-slate-700 flex items-center gap-1.5">
+            <span id="statusDot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span id="statusText">Ready</span>
+          </div>
+          <div class="px-3 py-1 bg-slate-900/80 backdrop-blur rounded-full text-xs font-medium text-cyan-400 border border-slate-700">
+            Faces: <span id="faceCount" class="font-bold">0</span>
+          </div>
+          <div class="px-3 py-1 bg-slate-900/80 backdrop-blur rounded-full text-xs font-medium text-slate-400 border border-slate-700">
+            FPS: <span id="fpsCount">--</span>
+          </div>
+        </div>
+
+        <!-- Video Element (Hidden, feeds Canvas) -->
+        <video id="webcamVideo" class="hidden" playsinline></video>
+
+        <!-- Canvas Output -->
+        <canvas id="outputCanvas" width="640" height="480" class="max-w-full h-auto bg-slate-900/90 shadow-2xl"></canvas>
+
+        <!-- Placeholder when camera is stopped -->
+        <div id="canvasPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/80 backdrop-blur-sm">
+          <svg class="w-16 h-16 text-cyan-400/60 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+          </svg>
+          <h3 class="text-lg font-semibold text-white">Camera is currently idle</h3>
+          <p class="text-xs text-slate-400 max-w-sm mt-1 mb-4">Click "Start Webcam" below to enable live face detection, or upload an image file from the controls panel.</p>
+          <button id="quickStartBtn" class="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm transition shadow-lg shadow-cyan-500/25">
+            Start Live Camera
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="glass-card rounded-xl p-3 flex flex-wrap gap-2 items-center justify-between">
+        <div class="flex gap-2">
+          <button id="toggleCamBtn" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs tracking-wide transition flex items-center gap-1.5 shadow-md">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            <span id="camBtnText">Start Webcam</span>
+          </button>
+          <button id="captureSnapshotBtn" disabled class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium text-xs transition flex items-center gap-1.5 border border-slate-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            Snapshot
+          </button>
+        </div>
+        <button id="downloadProcessedBtn" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition border border-slate-700 flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Save Image
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Controls Panel (1 Col) -->
+    <div class="flex flex-col gap-4">
+
+      <!-- Upload Section -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          Upload Image
+        </h2>
+        <label for="imageUploadInput" class="border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-xl p-4 text-center cursor-pointer transition block bg-slate-900/40">
+          <svg class="w-8 h-8 text-slate-400 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+          <span class="text-xs text-slate-300 font-medium block">Choose image or drag here</span>
+          <span class="text-[10px] text-slate-500 mt-1 block">Supports PNG, JPG, WebP</span>
+        </label>
+        <input type="file" id="imageUploadInput" accept="image/*" class="hidden">
+      </div>
+
+      <!-- Settings & Filters -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 flex flex-col gap-4">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+          Detection Settings
+        </h2>
+
+        <!-- Confidence Slider -->
+        <div>
+          <div class="flex justify-between text-xs text-slate-300 mb-1">
+            <span>Min Confidence</span>
+            <span id="confidenceVal" class="text-cyan-400 font-semibold">60%</span>
+          </div>
+          <input type="range" id="confidenceSlider" min="0.1" max="0.9" step="0.05" value="0.6" class="w-full accent-cyan-400 bg-slate-700 h-1.5 rounded-lg appearance-none cursor-pointer">
+        </div>
+
+        <!-- Toggles -->
+        <div class="space-y-2.5 pt-2 border-t border-slate-800">
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="text-slate-300">Show Bounding Box</span>
+            <input type="checkbox" id="toggleBox" checked class="w-4 h-4 accent-cyan-400 rounded">
+          </label>
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="text-slate-300">Show Facial Landmarks</span>
+            <input type="checkbox" id="toggleLandmarks" checked class="w-4 h-4 accent-cyan-400 rounded">
+          </label>
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="text-slate-300">Show Confidence Score</span>
+            <input type="checkbox" id="toggleScore" checked class="w-4 h-4 accent-cyan-400 rounded">
+          </label>
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="text-slate-300">Blur Faces (Privacy Mode)</span>
+            <input type="checkbox" id="toggleBlur" class="w-4 h-4 accent-cyan-400 rounded">
+          </label>
+        </div>
+
+        <!-- Box Color Picker -->
+        <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+          <span class="text-xs text-slate-300">Box Overlay Color</span>
+          <div class="flex items-center gap-2">
+            <input type="color" id="boxColorInput" value="#06b6d4" class="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer">
+          </div>
+        </div>
+      </div>
+
+      <!-- Detected Faces Gallery -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-2">Detected Faces</h2>
+        <div id="cropGallery" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+          <div class="col-span-3 text-center py-4 text-xs text-slate-500">No faces cropped yet</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-12 text-center text-xs text-slate-500 max-w-xl">
+    <p>Developed with Google MediaPipe Face Detection & HTML5 Canvas.</p>
+    <p class="mt-1">Computer Vision & Image Processing Project &bull; Hosted on GitHub Pages</p>
+  </footer>
+
+  <!-- Application Logic -->
+  <script>
+    const video = document.getElementById('webcamVideo');
+    const canvas = document.getElementById('outputCanvas');
+    const ctx = canvas.getContext('2d');
+    const placeholder = document.getElementById('canvasPlaceholder');
+
+    const toggleCamBtn = document.getElementById('toggleCamBtn');
+    const quickStartBtn = document.getElementById('quickStartBtn');
+    const camBtnText = document.getElementById('camBtnText');
+    const captureSnapshotBtn = document.getElementById('captureSnapshotBtn');
+    const downloadProcessedBtn = document.getElementById('downloadProcessedBtn');
+    const imageUploadInput = document.getElementById('imageUploadInput');
+
+    const statusBadge = document.getElementById('statusBadge');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const faceCountSpan = document.getElementById('faceCount');
+    const fpsCountSpan = document.getElementById('fpsCount');
+    const cropGallery = document.getElementById('cropGallery');
+
+    const confidenceSlider = document.getElementById('confidenceSlider');
+    const confidenceVal = document.getElementById('confidenceVal');
+    const toggleBox = document.getElementById('toggleBox');
+    const toggleLandmarks = document.getElementById('toggleLandmarks');
+    const toggleScore = document.getElementById('toggleScore');
+    const toggleBlur = document.getElementById('toggleBlur');
+    const boxColorInput = document.getElementById('boxColorInput');
+
+    let camera = null;
+    let isWebcamRunning = false;
+    let faceDetection = null;
+    let minConfidence = 0.6;
+    let lastFrameTime = performance.now();
+    let frameCount = 0;
+    let fps = 0;
+    let currentDetections = [];
+    let currentSourceImage = null;
+
+    // Initialize MediaPipe Face Detection
+    faceDetection = new FaceDetection({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+    });
+
+    faceDetection.setOptions({
+      model: 'short',
+      minDetectionConfidence: minConfidence
+    });
+
+    faceDetection.onResults(onResults);
+
+    confidenceSlider.addEventListener('input', (e) => {
+      minConfidence = parseFloat(e.target.value);
+      confidenceVal.innerText = `${Math.round(minConfidence * 100)}%`;
+      faceDetection.setOptions({ minDetectionConfidence: minConfidence });
+      if (!isWebcamRunning && currentSourceImage) {
+        faceDetection.send({ image: currentSourceImage });
+      }
+    });
+
+    // Render results on Canvas
+    function onResults(results) {
+      const now = performance.now();
+      frameCount++;
+      if (now - lastFrameTime >= 1000) {
+        fps = frameCount;
+        frameCount = 0;
+        lastFrameTime = now;
+        fpsCountSpan.innerText = fps;
+      }
+
+      ctx.save();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+      const detections = results.detections || [];
+      faceCountSpan.innerText = detections.length;
+      currentDetections = detections;
+
+      const boxColor = boxColorInput.value;
+
+      if (detections.length > 0) {
+        // Update gallery if not in live stream every frame to save cpu
+        if (!isWebcamRunning) {
+          updateCropGallery(results.image, detections);
+        }
+
+        detections.forEach((det, idx) => {
+          const bb = det.boundingBox;
+          const x = bb.xCenter * canvas.width - (bb.width * canvas.width) / 2;
+          const y = bb.yCenter * canvas.height - (bb.height * canvas.height) / 2;
+          const w = bb.width * canvas.width;
+          const h = bb.height * canvas.height;
+
+          // Privacy Blur option
+          if (toggleBlur.checked) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, h);
+            ctx.clip();
+            ctx.filter = 'blur(12px)';
+            ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+          }
+
+          // Bounding Box
+          if (toggleBox.checked) {
+            ctx.strokeStyle = boxColor;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, w, h);
+
+            // Bounding box corner accents
+            const cornerLen = 14;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            // Top-left
+            ctx.beginPath();
+            ctx.moveTo(x, y + cornerLen);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x + cornerLen, y);
+            ctx.stroke();
+            // Top-right
+            ctx.beginPath();
+            ctx.moveTo(x + w - cornerLen, y);
+            ctx.lineTo(x + w, y);
+            ctx.lineTo(x + w, y + cornerLen);
+            ctx.stroke();
+          }
+
+          // Confidence Tag
+          if (toggleScore.checked && det.score) {
+            const scorePercent = Math.round(det.score[0] * 100);
+            ctx.fillStyle = boxColor;
+            ctx.fillRect(x, Math.max(0, y - 22), 90, 22);
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 12px Inter, sans-serif';
+            ctx.fillText(`Face: ${scorePercent}%`, x + 6, Math.max(0, y - 6));
+          }
+
+          // Facial Landmarks
+          if (toggleLandmarks.checked && det.landmarks) {
+            det.landmarks.forEach((landmark) => {
+              const lx = landmark.x * canvas.width;
+              const ly = landmark.y * canvas.height;
+              ctx.beginPath();
+              ctx.arc(lx, ly, 3.5, 0, 2 * Math.PI);
+              ctx.fillStyle = '#f43f5e';
+              ctx.fill();
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            });
+          }
+        });
+      } else {
+        if (!isWebcamRunning) {
+          cropGallery.innerHTML = '<div class="col-span-3 text-center py-4 text-xs text-slate-500">No faces detected</div>';
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // Update cropped faces in gallery
+    function updateCropGallery(imageSource, detections) {
+      cropGallery.innerHTML = '';
+      detections.forEach((det, idx) => {
+        const bb = det.boundingBox;
+        const x = Math.max(0, (bb.xCenter - bb.width / 2) * canvas.width);
+        const y = Math.max(0, (bb.yCenter - bb.height / 2) * canvas.height);
+        const w = Math.min(canvas.width - x, bb.width * canvas.width);
+        const h = Math.min(canvas.height - y, bb.height * canvas.height);
+
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = 100;
+        cropCanvas.height = 100;
+        const cCtx = cropCanvas.getContext('2d');
+        cCtx.drawImage(imageSource, x, y, w, h, 0, 0, 100, 100);
+
+        const imgContainer = document.createElement('div');
+        imgContainer.className = 'flex flex-col items-center bg-slate-800/80 p-1.5 rounded-lg border border-slate-700';
+        const img = document.createElement('img');
+        img.src = cropCanvas.toDataURL();
+        img.className = 'w-16 h-16 object-cover rounded-md border border-cyan-500/30';
+        const label = document.createElement('span');
+        label.className = 'text-[10px] text-slate-300 font-medium mt-1';
+        label.innerText = `Face #${idx + 1}`;
+        imgContainer.appendChild(img);
+        imgContainer.appendChild(label);
+        cropGallery.appendChild(imgContainer);
+      });
+    }
+
+    // Toggle Webcam
+    async function startWebcam() {
+      try {
+        placeholder.classList.add('hidden');
+        statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+        statusText.innerText = 'Detecting Live';
+        captureSnapshotBtn.disabled = false;
+        camBtnText.innerText = 'Stop Webcam';
+        isWebcamRunning = true;
+
+        camera = new Camera(video, {
+          onFrame: async () => {
+            if (isWebcamRunning) {
+              await faceDetection.send({ image: video });
+            }
+          },
+          width: 640,
+          height: 480
+        });
+        await camera.start();
+      } catch (err) {
+        alert("Camera error: " + err.message);
+        stopWebcam();
+      }
+    }
+
+    function stopWebcam() {
+      if (camera) {
+        camera.stop();
+        camera = null;
+      }
+      isWebcamRunning = false;
+      camBtnText.innerText = 'Start Webcam';
+      captureSnapshotBtn.disabled = true;
+      placeholder.classList.remove('hidden');
+      statusDot.className = 'w-2 h-2 rounded-full bg-slate-500';
+      statusText.innerText = 'Idle';
+      fpsCountSpan.innerText = '--';
+    }
+
+    toggleCamBtn.addEventListener('click', () => {
+      if (isWebcamRunning) {
+        stopWebcam();
+      } else {
+        startWebcam();
+      }
+    });
+    quickStartBtn.addEventListener('click', startWebcam);
+
+    // Snapshot
+    captureSnapshotBtn.addEventListener('click', () => {
+      if (currentDetections.length > 0) {
+        updateCropGallery(video, currentDetections);
+      }
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `facescope-snapshot-${Date.now()}.png`;
+      a.click();
+    });
+
+    // Save Image button
+    downloadProcessedBtn.addEventListener('click', () => {
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `facescope-detection-${Date.now()}.png`;
+      a.click();
+    });
+
+    // Image Upload
+    imageUploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (isWebcamRunning) {
+        stopWebcam();
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          placeholder.classList.add('hidden');
+          canvas.width = img.naturalWidth || 640;
+          canvas.height = img.naturalHeight || 480;
+          currentSourceImage = img;
+          statusDot.className = 'w-2 h-2 rounded-full bg-cyan-400';
+          statusText.innerText = 'Image Loaded';
+          faceDetection.send({ image: img });
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Redraw settings on toggle change for static images
+    [toggleBox, toggleLandmarks, toggleScore, toggleBlur, boxColorInput].forEach(ctrl => {
+      ctrl.addEventListener('input', () => {
+        if (!isWebcamRunning && currentSourceImage) {
+          faceDetection.send({ image: currentSourceImage });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
