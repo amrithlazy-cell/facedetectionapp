@@ -6,7 +6,7 @@ A computer vision application for real-time face detection, facial landmark trac
 
 ## 🔗 Live Deployments
 
-- **Streamlit Web Application:** [https://face-detection-app.streamlit.app](https://share.streamlit.io) *(Deployable via Streamlit Community Cloud)*
+- **Streamlit Web Application:** https://facedetectionappgit-8qs5juu2ktnhbpbuauzev7.streamlit.app/ *(Deployable via Streamlit Community Cloud)*
 - **GitHub Pages Live Demo:** `https://amrithlazy-cell.github.io/facedetectionapp/` *(Instant client-side browser deployment)*
 
 ---
