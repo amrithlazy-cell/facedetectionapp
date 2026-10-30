@@ -6,8 +6,8 @@ echo.
 echo Make sure you have created an empty repository named
 echo 'facedetectionapp' at: https://github.com/new
 echo.
-echo Pushing branch 'main' to origin...
-git push -u origin main
+echo Pushing and replacing branch 'main' on GitHub (origin)...
+git push --force -u origin main
 
 if %ERRORLEVEL% EQU 0 (
     echo.
