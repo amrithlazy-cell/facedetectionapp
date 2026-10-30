@@ -7,7 +7,7 @@ A computer vision application for real-time face detection, facial landmark trac
 ## 🔗 Live Deployments
 
 - **Streamlit Web Application:** [https://face-detection-app.streamlit.app](https://share.streamlit.io) *(Deployable via Streamlit Community Cloud)*
-- **GitHub Pages Live Demo:** `https://pranavbpeenikkal.github.io/face-detection-app/` *(Instant client-side browser deployment)*
+- **GitHub Pages Live Demo:** `https://amrithlazy-cell.github.io/facedetectionapp/` *(Instant client-side browser deployment)*
 
 ---
 
@@ -69,8 +69,8 @@ face-detection-app/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/pranavbpeenikkal/face-detection-app.git
-cd face-detection-app
+git clone https://github.com/amrithlazy-cell/facedetectionapp.git
+cd facedetectionapp
 ```
 
 ### 2. Install dependencies
@@ -97,21 +97,21 @@ python detect_webcam.py
 ## 🌐 How to Deploy and Host Online
 
 ### Option A: Deploy on Streamlit Community Cloud (Recommended)
-1. Push your repository to GitHub (`pranavbpeenikkal/face-detection-app`).
+1. Push your repository to GitHub (`amrithlazy-cell/facedetectionapp`).
 2. Visit [share.streamlit.io](https://share.streamlit.io) and log in with your GitHub account.
 3. Click **"New app"**.
-4. Select repository: `pranavbpeenikkal/face-detection-app`.
+4. Select repository: `amrithlazy-cell/facedetectionapp`.
 5. Set Main file path to: `app.py`.
 6. Click **"Deploy!"** &mdash; Your application will be live with a public URL in 1 minute!
 
 ### Option B: Deploy on GitHub Pages
-1. Go to your repository on GitHub: `https://github.com/pranavbpeenikkal/face-detection-app`.
+1. Go to your repository on GitHub: `https://github.com/amrithlazy-cell/facedetectionapp`.
 2. Click **Settings** &rarr; **Pages** (under Code and automation).
 3. Under **Build and deployment**:
    - Source: **Deploy from a branch**
    - Branch: `main` (or `master`), Folder: `/ (root)`
 4. Click **Save**. Within 1–2 minutes, your live web app will be accessible at:
-   `https://pranavbpeenikkal.github.io/face-detection-app/`
+   `https://amrithlazy-cell.github.io/facedetectionapp/`
 
 ---
 
